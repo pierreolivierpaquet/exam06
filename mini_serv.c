@@ -6,7 +6,7 @@
 /*   By: ppaquet <pierreolivierpaquet@hotmail.co    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/06/13 21:13:12 by ppaquet           #+#    #+#             */
-/*   Updated: 2024/06/14 20:11:47 by ppaquet          ###   ########.fr       */
+/*   Updated: 2024/06/14 20:19:57 by ppaquet          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -46,9 +46,9 @@ int	main(int argc, char **argv)
 	convert_port(&port, argv[1]);
 	if (port < 1024 || port > 65535)
 		return (EXIT_FAILURE);
-	
-	
-	
+
+	server_socket.sin_port=htons(port);
+
 	return (EXIT_SUCCESS);
 }
 
