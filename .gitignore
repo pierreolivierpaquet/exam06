@@ -1,2 +1,4 @@
 .vscode
 *.dSYM
+a.out
+mini_serv
