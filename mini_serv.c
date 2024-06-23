@@ -6,7 +6,7 @@
 /*   By: ppaquet <pierreolivierpaquet@hotmail.co    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/06/13 21:13:12 by ppaquet           #+#    #+#             */
-/*   Updated: 2024/06/22 16:07:38 by ppaquet          ###   ########.fr       */
+/*   Updated: 2024/06/23 12:38:20 by ppaquet          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,7 +31,7 @@ typedef	struct	s_server
 {
 	int					port;				// Listened port.
 	int					fd;					// Socket file descriptor.
-	struct sockaddr_in	socket_address;		// 
+	struct sockaddr_in	socket_address;		// Internet address information.
 	t_client			clients[SOMAXCONN];	// Array of client(s).
 	fd_set				current_set;		// fd_set data type represents file descriptor sets for the select function. It is actually a bit array.
 	fd_set				read_set;			//	Set of file descriptors that have a reading status.
@@ -68,6 +68,26 @@ void	get_server(t_server **get)
 	return ;
 }
 
+int	broadcast(int sender)
+{
+	t_server	*server;
+	int			i;
+
+	get_server(&server);
+	i = server->fd;
+	while (i <= server->highest_fd)
+	{
+		if (FD_ISSET(i, &server->write_set) && \
+			i != sender)
+		{
+			if (send(i, server->send_buf, strlen(server->send_buf), 0) < 0)
+				return (-1);
+		}
+		i++;
+	}
+	return (0);
+}
+
 int	mini_serv(void)
 {
 	t_server			*server;
@@ -82,7 +102,6 @@ int	mini_serv(void)
 	server = NULL;
 	get_server(&server);
 
-	printf("ENTERING THE INFINTE LOOP\n");
 	while (true)
 	{
 //		select() function is destructive, so we need to make a copy. current_set serves as a backup of all client file descriptors.
@@ -115,25 +134,24 @@ int	mini_serv(void)
 											&sock_lenght);
 					if (new_client_fd > 0)
 					{
-						if (new_client_fd > server->highest_fd)
+						if (new_client_fd > server->highest_fd) // Makes sure to keep track of the highest file descriptor.
 							server->highest_fd = new_client_fd;
 						server->clients[new_client_fd].id = server->client_id;
 						server->client_id++;
 						FD_SET(new_client_fd, &server->current_set);		// Adds the new client file descriptor to the monitored set.
 						sprintf(server->send_buf, "server: client %d just arrived\n", server->clients[new_client_fd].id);
-						printf("%s", server->send_buf);
+						broadcast(new_client_fd);
 					}
 					else
 						continue;
 				}
-				else // Means that a message is sent.
+				else // Means that a message is sent, yet to be received.
 				{
 					bytes_received = recv(i, server->receive_buf, sizeof(server->receive_buf), 0);
 					if (bytes_received <= 0)
 					{
 						sprintf(server->send_buf, "server: client %d just left\n", server->clients[i].id);
-						// ADD FUNCTION THAT SENDS TO EVERY CLIENT
-						printf("%s", server->send_buf);
+						broadcast(i);
 						FD_CLR(i, &server->current_set); // Deletes the file descriptor from the monitored set.
 						close(i); // Closes the file descriptor.
 						bzero(&server->clients[i], sizeof(server->clients[i])); // Deletes the data stored to the client struct.
@@ -149,8 +167,7 @@ int	mini_serv(void)
 							{
 								server->clients[i].buffer[k] = '\0';
 								sprintf(server->send_buf, "client %d: %s\n", server->clients[i].id, server->clients[i].buffer);
-								// ADD FUNCTION THAT SENDS TO EVERY CLIENT
-								printf("%s", server->send_buf);
+								broadcast(i);
 								bzero(server->clients[i].buffer, strlen(server->clients[i].buffer));
 								k = -1;
 							}
